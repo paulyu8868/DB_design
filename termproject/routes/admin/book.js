@@ -1,5 +1,5 @@
 import express from 'express';
-import { selectSql, insertSql, updateSql, deleteSql } from "../database/sql";
+import { selectSql, insertSql, updateSql, deleteSql } from "../../database/sql";
 
 const router = express.Router();
 

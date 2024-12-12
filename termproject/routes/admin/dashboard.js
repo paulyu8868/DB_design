@@ -8,7 +8,7 @@ router.get('/', (req, res) => {
 // 다른 페이지로 렌더링
 router.get('/:table', (req, res) => {
     const table = req.params.table;
-    const validTables = ['book', 'author', 'award', 'warehouse', 'inventory'];
+    const validTables = ['book', 'author', 'award', 'warehouse', 'inventory', 'contains'];
     
     if (!validTables.includes(table)) {
         return res.status(404).send('Invalid table');

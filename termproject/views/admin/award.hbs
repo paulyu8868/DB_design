@@ -1,0 +1,181 @@
+<div class="min-h-screen bg-gray-100 p-8">
+   <div class="max-w-6xl mx-auto">
+       <!-- 수상 정보 추가 섹션 -->
+       <div class="bg-white rounded-lg shadow mb-8 p-6">
+           <h2 class="text-xl font-semibold mb-4">수상 정보 추가</h2>
+           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <input type="text" id="newName" placeholder="수상명" class="p-2 border rounded">
+               <input type="number" id="newYear" placeholder="수상 연도" class="p-2 border rounded">
+               <button onclick="addAward()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                   추가
+               </button>
+           </div>
+       </div>
+
+       <!-- 수상 정보 검색 섹션 -->
+       <div class="bg-white rounded-lg shadow mb-8 p-6">
+           <div class="flex gap-4">
+               <input type="text" id="searchName" placeholder="정확한 수상명을 입력하세요" 
+                      class="flex-1 p-2 border rounded">
+               <button onclick="searchAwards()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                   검색
+               </button>
+           </div>
+       </div>
+
+       <!-- 검색 결과 테이블 -->
+       <div class="bg-white rounded-lg shadow overflow-hidden">
+           <table class="min-w-full">
+               <thead class="bg-gray-50">
+                   <tr>
+                       <th class="px-6 py-3 text-left text-gray-500">번호</th>
+                       <th class="px-6 py-3 text-left text-gray-500">수상명</th>
+                       <th class="px-6 py-3 text-left text-gray-500">수상 연도</th>
+                       <th class="px-6 py-3 text-left text-gray-500">관리</th>
+                   </tr>
+               </thead>
+               <tbody id="searchResults"></tbody>
+           </table>
+       </div>
+   </div>
+</div>
+
+<!-- 수정 모달 -->
+<div id="editModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden flex items-center justify-center">
+   <div class="bg-white p-6 rounded-lg w-full max-w-md">
+       <h2 class="text-xl font-semibold mb-4">수상 정보 수정</h2>
+       <input type="hidden" id="editAwardId">
+       <div class="space-y-4">
+           <div>
+               <label class="block text-sm font-medium text-gray-700 mb-1">수상명</label>
+               <input type="text" id="editName" class="w-full p-2 border rounded">
+           </div>
+           <div>
+               <label class="block text-sm font-medium text-gray-700 mb-1">수상 연도</label>
+               <input type="number" id="editYear" class="w-full p-2 border rounded">
+           </div>
+       </div>
+       <div class="flex justify-end gap-4 mt-6">
+           <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+               취소
+           </button>
+           <button onclick="updateAward()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+               수정
+           </button>
+       </div>
+   </div>
+</div>
+
+<script>
+function addAward() {
+   const awardData = {
+       name: document.getElementById('newName').value,
+       year: document.getElementById('newYear').value
+   };
+
+   fetch('/admin/award/add', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(awardData)
+   })
+   .then(res => res.json())
+   .then(data => {
+       if (data.success) {
+           alert('수상 정보가 추가되었습니다.');
+           clearAddForm();
+       } else {
+           alert(data.message || '정확한 수상 정보를 입력해주세요.');
+       }
+   })
+   .catch(() => alert('서버와의 연결에 문제가 발생했습니다.'));
+}
+
+function searchAwards() {
+   const searchName = document.getElementById('searchName').value;
+   if (!searchName) return alert('검색어를 입력해주세요.');
+
+   fetch(`/admin/award/search?name=${encodeURIComponent(searchName)}`)
+       .then(res => res.json())
+       .then(data => {
+           if (data.error) {
+               alert(data.error);
+               document.getElementById('searchResults').innerHTML = '';
+               return;
+           }
+           displaySearchResults(data.awards);
+       })
+       .catch(() => {
+           alert('검색 결과가 없습니다.');
+           document.getElementById('searchResults').innerHTML = '';
+       });
+}
+
+function editAward(award) {
+   document.getElementById('editAwardId').value = award.award_id;
+   document.getElementById('editName').value = award.name;
+   document.getElementById('editYear').value = award.year;
+   document.getElementById('editModal').classList.remove('hidden');
+}
+
+function updateAward() {
+   const awardData = {
+       award_id: document.getElementById('editAwardId').value,
+       name: document.getElementById('editName').value,
+       year: document.getElementById('editYear').value
+   };
+
+   fetch('/admin/award/update', {
+       method: 'PUT',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify(awardData)
+   })
+   .then(res => res.json())
+   .then(data => {
+       if(data.success) {
+           alert('수정되었습니다.');
+           closeEditModal();
+           searchAwards();
+       }
+   })
+   .catch(() => alert('수정 중 오류가 발생했습니다.'));
+}
+
+function deleteAward(awardId) {
+   if(!confirm('정말 삭제하시겠습니까?')) return;
+   
+   fetch(`/admin/award/${awardId}`, { method: 'DELETE' })
+       .then(res => res.json())
+       .then(data => {
+           if(data.success) {
+               searchAwards();
+           }
+       })
+       .catch(() => alert('삭제 중 오류가 발생했습니다.'));
+}
+
+function closeEditModal() {
+   document.getElementById('editModal').classList.add('hidden');
+}
+
+function clearAddForm() {
+   ['Name', 'Year'].forEach(field => {
+       document.getElementById('new' + field).value = '';
+   });
+}
+
+function displaySearchResults(awards) {
+   document.getElementById('searchResults').innerHTML = awards.map(award => `
+       <tr class="border-t">
+           <td class="px-6 py-4">${award.award_id}</td>
+           <td class="px-6 py-4">${award.name}</td>
+           <td class="px-6 py-4">${award.year}</td>
+           <td class="px-6 py-4">
+               <button onclick='editAward(${JSON.stringify(award)})' 
+                       class="text-blue-500 hover:text-blue-700 mr-4">수정</button>
+               <button onclick="deleteAward(${award.award_id})" 
+                       class="text-red-500 hover:text-red-700">삭제</button>
+           </td>
+       </tr>
+   `).join('');
+}
+</script>

@@ -1,0 +1,183 @@
+<div class="min-h-screen bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- 작가 추가 섹션 -->
+        <div class="bg-white rounded-lg shadow mb-8 p-6">
+            <h2 class="text-xl font-semibold mb-4">작가 추가</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="text" id="newName" placeholder="작가명" class="p-2 border rounded">
+                <input type="text" id="newAddress" placeholder="주소" class="p-2 border rounded">
+                <input type="text" id="newUrl" placeholder="홈페이지 URL" class="p-2 border rounded">
+                <button onclick="addAuthor()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    추가
+                </button>
+            </div>
+        </div>
+
+        <!-- 작가 검색 섹션 -->
+        <div class="bg-white rounded-lg shadow mb-8 p-6">
+            <div class="flex gap-4">
+                <input type="text" id="searchName" placeholder="정확한 작가명을 입력하세요" 
+                       class="flex-1 p-2 border rounded">
+                <button onclick="searchAuthors()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    검색
+                </button>
+            </div>
+        </div>
+
+        <!-- 검색 결과 테이블 -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-gray-500">작가명</th>
+                        <th class="px-6 py-3 text-left text-gray-500">주소</th>
+                        <th class="px-6 py-3 text-left text-gray-500">홈페이지</th>
+                        <th class="px-6 py-3 text-left text-gray-500">관리</th>
+                    </tr>
+                </thead>
+                <tbody id="searchResults"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 수정 모달 -->
+<div id="editModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">작가 정보 수정</h2>
+        <input type="hidden" id="editName">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">주소</label>
+                <input type="text" id="editAddress" class="w-full p-2 border rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">홈페이지</label>
+                <input type="text" id="editUrl" class="w-full p-2 border rounded">
+            </div>
+        </div>
+        <div class="flex justify-end gap-4 mt-6">
+            <button onclick="closeEditModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                취소
+            </button>
+            <button onclick="updateAuthor()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                수정
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function addAuthor() {
+    const authorData = {
+        name: document.getElementById('newName').value,
+        address: document.getElementById('newAddress').value,
+        url: document.getElementById('newUrl').value
+    };
+
+    fetch('/admin/author/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authorData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('작가가 추가되었습니다.');
+            clearAddForm();
+        } else {
+            alert(data.message || '정확한 작가 정보를 입력해주세요.');
+        }
+    })
+    .catch(() => alert('서버와의 연결에 문제가 발생했습니다.'));
+}
+
+function searchAuthors() {
+    const searchName = document.getElementById('searchName').value;
+    if (!searchName) return alert('검색어를 입력해주세요.');
+
+    fetch(`/admin/author/search?name=${encodeURIComponent(searchName)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                document.getElementById('searchResults').innerHTML = '';
+                return;
+            }
+            displaySearchResults(data.authors);
+        })
+        .catch(() => {
+            alert('검색 결과가 없습니다.');
+            document.getElementById('searchResults').innerHTML = '';
+        });
+}
+
+function editAuthor(author) {
+    document.getElementById('editName').value = author.name;
+    document.getElementById('editAddress').value = author.address;
+    document.getElementById('editUrl').value = author.url;
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+function updateAuthor() {
+    const authorData = {
+        name: document.getElementById('editName').value,
+        address: document.getElementById('editAddress').value,
+        url: document.getElementById('editUrl').value
+    };
+
+    fetch('/admin/author/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authorData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            alert('수정되었습니다.');
+            closeEditModal();
+            searchAuthors();
+        }
+    })
+    .catch(() => alert('수정 중 오류가 발생했습니다.'));
+}
+
+function deleteAuthor(name) {
+    if(!confirm('정말 삭제하시겠습니까?')) return;
+    
+    fetch(`/admin/author/${encodeURIComponent(name)}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                searchAuthors();
+            }
+        })
+        .catch(() => alert('삭제 중 오류가 발생했습니다.'));
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
+
+function clearAddForm() {
+    ['Name', 'Address', 'Url'].forEach(field => {
+        document.getElementById('new' + field).value = '';
+    });
+}
+
+function displaySearchResults(authors) {
+    document.getElementById('searchResults').innerHTML = authors.map(author => `
+        <tr class="border-t">
+            <td class="px-6 py-4">${author.name}</td>
+            <td class="px-6 py-4">${author.address || '-'}</td>
+            <td class="px-6 py-4">${author.url || '-'}</td>
+            <td class="px-6 py-4">
+                <button onclick='editAuthor(${JSON.stringify(author)})' 
+                        class="text-blue-500 hover:text-blue-700 mr-4">수정</button>
+                <button onclick='deleteAuthor("${author.name}")' 
+                        class="text-red-500 hover:text-red-700">삭제</button>
+            </td>
+        </tr>
+    `).join('');
+}
+</script>
