@@ -110,11 +110,33 @@ function searchAwards() {
        });
 }
 
-function editAward(award) {
-   document.getElementById('editAwardId').value = award.award_id;
-   document.getElementById('editName').value = award.name;
-   document.getElementById('editYear').value = award.year;
-   document.getElementById('editModal').classList.remove('hidden');
+async function editAward(award) {
+    try {
+        const response = await fetch(`/admin/award/lock/${award.award_id}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert(data.error);
+            return;
+        }
+
+        document.getElementById('editAwardId').value = award.award_id;
+        document.getElementById('editName').value = award.name;
+        document.getElementById('editYear').value = award.year;
+        document.getElementById('editModal').classList.remove('hidden');
+    } catch (err) {
+        alert('오류가 발생했습니다.');
+    }
+}
+
+async function closeEditModal() {
+    const id = document.getElementById('editAwardId').value;
+    await fetch(`/admin/award/unlock/${id}`, {
+        method: 'POST'
+    });
+    document.getElementById('editModal').classList.add('hidden');
 }
 
 function updateAward() {
@@ -153,9 +175,7 @@ function deleteAward(awardId) {
        .catch(() => alert('삭제 중 오류가 발생했습니다.'));
 }
 
-function closeEditModal() {
-   document.getElementById('editModal').classList.add('hidden');
-}
+
 
 function clearAddForm() {
    ['Name', 'Year'].forEach(field => {

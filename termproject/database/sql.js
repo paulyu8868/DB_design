@@ -271,20 +271,20 @@ export const deleteSql = {
      }
 };
 
+
 export const lockSql = {
+    // Book lock 함수들
     lockBook: async (isbn) => {
         try {
-            // 먼저 lock이 걸려있는지 확인
             const [checkResult] = await promisePool.query(
                 'SELECT IS_FREE_LOCK(?) as is_free', 
                 [`book_lock_${isbn}`]
             );
             
-            if (!checkResult[0].is_free) { // lock이 걸려있으면 false 반환
-                return false; 
+            if (!checkResult[0].is_free) {
+                return false;
             }
 
-            // lock이 안걸려있으면 lock 시도
             const [lockResult] = await promisePool.query(
                 'SELECT GET_LOCK(?, 0) as success', 
                 [`book_lock_${isbn}`]
@@ -297,11 +297,186 @@ export const lockSql = {
         }
     },
 
-    unlock: async (isbn) => {
+    unlockBook: async (isbn) => {
         try {
             await promisePool.query(
                 'SELECT RELEASE_LOCK(?)', 
                 [`book_lock_${isbn}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    },
+
+    // Author lock 함수들
+    lockAuthor: async (name) => {
+        try {
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`author_lock_${name}`]
+            );
+            
+            if (!checkResult[0].is_free) {
+                return false;
+            }
+
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`author_lock_${name}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlockAuthor: async (name) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`author_lock_${name}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    },
+
+    // Award lock 함수들
+    lockAward: async (id) => {
+        try {
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`award_lock_${id}`]
+            );
+            
+            if (!checkResult[0].is_free) {
+                return false;
+            }
+
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`award_lock_${id}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlockAward: async (id) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`award_lock_${id}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    },
+
+    // Warehouse lock 함수들
+    lockWarehouse: async (code) => {
+        try {
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`warehouse_lock_${code}`]
+            );
+            
+            if (!checkResult[0].is_free) {
+                return false;
+            }
+
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`warehouse_lock_${code}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlockWarehouse: async (code) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`warehouse_lock_${code}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    },
+
+    // Order lock 함수들
+    lockOrder: async (isbn, basketId) => {
+        try {
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`order_lock_${isbn}_${basketId}`]
+            );
+            
+            if (!checkResult[0].is_free) {
+                return false;
+            }
+
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`order_lock_${isbn}_${basketId}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlockOrder: async (isbn, basketId) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`order_lock_${isbn}_${basketId}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    },
+
+    // Inventory lock 함수들
+    lockInventory: async (isbn, code) => {
+        try {
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`inventory_lock_${isbn}_${code}`]
+            );
+            
+            if (!checkResult[0].is_free) {
+                return false;
+            }
+
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`inventory_lock_${isbn}_${code}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlockInventory: async (isbn, code) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`inventory_lock_${isbn}_${code}`]
             );
         } catch (err) {
             console.error('Unlock error:', err);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { selectSql, insertSql, updateSql, deleteSql } from "../../database/sql";
+import { selectSql, insertSql, updateSql, deleteSql ,lockSql } from "../../database/sql";
 
 const router = express.Router();
 
@@ -60,6 +60,28 @@ router.delete('/:isbn/:code', async (req, res) => {
        console.error('Delete Error:', err);
        res.status(500).json({ error: '재고 삭제 중 오류가 발생했습니다.' });
    }
+});
+
+
+router.post('/lock/:isbn/:code', async (req, res) => {
+    try {
+        const result = await lockSql.lockInventory(req.params.isbn, req.params.code);
+        if (!result) {
+            return res.json({ 
+                success: false, 
+                error: '다른 관리자가 수정 중입니다.' 
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: '오류가 발생했습니다.' });
+        console.log(err);
+    }
+});
+
+router.post('/unlock/:isbn/:code', async (req, res) => {
+    await lockSql.unlockInventory(req.params.isbn, req.params.code);
+    res.json({ success: true });
 });
 
 module.exports = router;

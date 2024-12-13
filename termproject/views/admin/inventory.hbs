@@ -109,11 +109,34 @@ function searchInventory() {
         });
 }
 
-function editInventory(inventory) {
-    document.getElementById('editISBN').value = inventory.Book_ISBN;
-    document.getElementById('editWarehouseCode').value = inventory.Warehouse_code;
-    document.getElementById('editQuantity').value = inventory.quantity;
-    document.getElementById('editModal').classList.remove('hidden');
+async function editInventory(inventory) {
+    try {
+        const response = await fetch(`/admin/inventory/lock/${inventory.Book_ISBN}/${inventory.Warehouse_code}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert(data.error);
+            return;
+        }
+
+        document.getElementById('editISBN').value = inventory.Book_ISBN;
+        document.getElementById('editWarehouseCode').value = inventory.Warehouse_code;
+        document.getElementById('editQuantity').value = inventory.quantity;
+        document.getElementById('editModal').classList.remove('hidden');
+    } catch (err) {
+        alert('오류가 발생했습니다.');
+    }
+}
+
+async function closeEditModal() {
+    const isbn = document.getElementById('editISBN').value;
+    const code = document.getElementById('editWarehouseCode').value;
+    await fetch(`/admin/inventory/unlock/${isbn}/${code}`, {
+        method: 'POST'
+    });
+    document.getElementById('editModal').classList.add('hidden');
 }
 
 function updateInventory() {
@@ -152,9 +175,7 @@ function deleteInventory(ISBN, code) {
         .catch(() => alert('삭제 중 오류가 발생했습니다.'));
 }
 
-function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
-}
+
 
 function clearAddForm() {
     ['ISBN', 'WarehouseCode', 'Quantity'].forEach(field => {

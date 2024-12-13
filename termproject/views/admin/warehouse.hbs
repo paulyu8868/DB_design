@@ -112,11 +112,33 @@ function searchWarehouses() {
        });
 }
 
-function editWarehouse(warehouse) {
-   document.getElementById('editCode').value = warehouse.code;
-   document.getElementById('editAddress').value = warehouse.address;
-   document.getElementById('editPhonenumber').value = warehouse.phonenumber || '';
-   document.getElementById('editModal').classList.remove('hidden');
+async function editWarehouse(warehouse) {
+    try {
+        const response = await fetch(`/admin/warehouse/lock/${warehouse.code}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert(data.error);
+            return;
+        }
+
+        document.getElementById('editCode').value = warehouse.code;
+        document.getElementById('editAddress').value = warehouse.address;
+        document.getElementById('editPhonenumber').value = warehouse.phonenumber || '';
+        document.getElementById('editModal').classList.remove('hidden');
+    } catch (err) {
+        alert('오류가 발생했습니다.');
+    }
+}
+
+async function closeEditModal() {
+    const code = document.getElementById('editCode').value;
+    await fetch(`/admin/warehouse/unlock/${code}`, {
+        method: 'POST'
+    });
+    document.getElementById('editModal').classList.add('hidden');
 }
 
 function updateWarehouse() {
@@ -153,10 +175,6 @@ function deleteWarehouse(code) {
            }
        })
        .catch(() => alert('삭제 중 오류가 발생했습니다.'));
-}
-
-function closeEditModal() {
-   document.getElementById('editModal').classList.add('hidden');
 }
 
 function clearAddForm() {

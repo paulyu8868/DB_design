@@ -1,5 +1,5 @@
 import express from 'express';
-import { selectSql, insertSql, updateSql, deleteSql } from "../../database/sql";
+import { selectSql, insertSql, updateSql, deleteSql ,lockSql} from "../../database/sql";
 
 const router = express.Router();
 
@@ -61,4 +61,23 @@ router.delete('/:isbn/:basketId', async (req, res) => {
    }
 });
 
+router.post('/lock/:isbn/:basketId', async (req, res) => {
+    try {
+        const result = await lockSql.lockOrder(req.params.isbn, req.params.basketId);
+        if (!result) {
+            return res.json({ 
+                success: false, 
+                error: '다른 관리자가 수정 중입니다.' 
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: '오류가 발생했습니다.' });
+    }
+});
+
+router.post('/unlock/:isbn/:basketId', async (req, res) => {
+    await lockSql.unlockOrder(req.params.isbn, req.params.basketId);
+    res.json({ success: true });
+});
 module.exports = router;
