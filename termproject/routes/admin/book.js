@@ -1,5 +1,5 @@
 import express from 'express';
-import { selectSql, insertSql, updateSql, deleteSql } from "../../database/sql";
+import { selectSql, insertSql, updateSql, deleteSql, lockSql } from "../../database/sql";
 
 const router = express.Router();
 
@@ -26,8 +26,9 @@ router.post('/add', async (req, res) => {
 // 도서 수정
 router.put('/update', async (req, res) => {
     try {
-        await updateSql.updateBook(req.body);
+        const result = await updateSql.updateBook(req.body);
         res.json({ success: true });
+        console.log(result)
     } catch (err) {
         res.status(500).json({ error: '도서 수정 중 오류가 발생했습니다.' });
     }
@@ -41,6 +42,32 @@ router.delete('/:isbn', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: '도서 삭제 중 오류가 발생했습니다.' });
     }
+});
+
+// book.js 라우터
+router.post('/lock/:isbn', async (req, res) => {
+    try {
+        const result = await lockSql.lockBook(req.params.isbn);
+        if (!result) {  // lock 실패
+            return res.json({ 
+                success: false, 
+                error: '다른 관리자가 수정 중입니다.' 
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Lock error:', err);
+        res.json({ 
+            success: false, 
+            error: '다른 관리자가 수정 중입니다.' 
+        });
+    }
+});
+
+// book.js 라우터
+router.post('/unlock/:isbn', async (req, res) => {
+    await lockSql.unlock(req.params.isbn);  // isbn 전달
+    res.json({ success: true });
 });
 
 module.exports = router;

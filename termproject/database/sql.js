@@ -170,13 +170,18 @@ export const insertSql = {
 export const updateSql = {
     // 도서 수정
     updateBook: async (book) => {
-        const sql = `
-            UPDATE book 
-            SET category = ?, price = ?, title = ?, year = ?
-            WHERE ISBN = ?
-        `;
-        const values = [book.category, book.price, book.title, book.year,book.ISBN];
-        await promisePool.query(sql, values);
+        try{
+            const sql = `
+                UPDATE book 
+                SET category = ?, price = ?, title = ?, year = ?
+                WHERE ISBN = ?
+            `;
+            const values = [book.category, book.price, book.title, book.year,book.ISBN];
+            await promisePool.query(sql, values);
+            return true;
+        }catch(err){
+            return err
+        }
     },
     // 작가 수정
     updateAuthor: async (author) => {
@@ -264,4 +269,42 @@ export const deleteSql = {
         const sql = `DELETE FROM book_shoppingbasket WHERE Book_ISBN = ? AND Shopping_basket_basket_id = ?`;
         await promisePool.query(sql, [isbn, basketId]);
      }
+};
+
+export const lockSql = {
+    lockBook: async (isbn) => {
+        try {
+            // 먼저 lock이 걸려있는지 확인
+            const [checkResult] = await promisePool.query(
+                'SELECT IS_FREE_LOCK(?) as is_free', 
+                [`book_lock_${isbn}`]
+            );
+            
+            if (!checkResult[0].is_free) { // lock이 걸려있으면 false 반환
+                return false; 
+            }
+
+            // lock이 안걸려있으면 lock 시도
+            const [lockResult] = await promisePool.query(
+                'SELECT GET_LOCK(?, 0) as success', 
+                [`book_lock_${isbn}`]
+            );
+
+            return lockResult[0].success === 1;
+        } catch (err) {
+            console.error('Lock error:', err);
+            return false;
+        }
+    },
+
+    unlock: async (isbn) => {
+        try {
+            await promisePool.query(
+                'SELECT RELEASE_LOCK(?)', 
+                [`book_lock_${isbn}`]
+            );
+        } catch (err) {
+            console.error('Unlock error:', err);
+        }
+    }
 };

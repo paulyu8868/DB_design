@@ -127,13 +127,29 @@ function searchBooks() {
        });
 }
 
-function editBook(book) {
-   document.getElementById('editISBN').value = book.ISBN;
-   document.getElementById('editTitle').value = book.title;
-   document.getElementById('editCategory').value = book.category;
-   document.getElementById('editPrice').value = book.price;
-   document.getElementById('editYear').value = book.year;
-   document.getElementById('editModal').classList.remove('hidden');
+// book.hbs의 editBook 함수
+async function editBook(book) {
+    try {
+        const response = await fetch(`/admin/book/lock/${book.ISBN}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (!data.success) {  // 명시적으로 success가 false인 경우 체크
+            alert(data.error);
+            return;  // 여기서 함수 종료
+        }
+
+        // lock 성공한 경우에만 모달 열기
+        document.getElementById('editISBN').value = book.ISBN;
+        document.getElementById('editTitle').value = book.title;
+        document.getElementById('editCategory').value = book.category;
+        document.getElementById('editPrice').value = book.price;
+        document.getElementById('editYear').value = book.year;
+        document.getElementById('editModal').classList.remove('hidden');
+    } catch (err) {
+        alert('오류가 발생했습니다.');
+    }
 }
 
 function updateBook() {
@@ -174,8 +190,12 @@ function deleteBook(ISBN) {
        .catch(() => alert('삭제 중 오류가 발생했습니다.'));
 }
 
-function closeEditModal() {
-   document.getElementById('editModal').classList.add('hidden');
+async function closeEditModal() {
+    const isbn = document.getElementById('editISBN').value;
+    await fetch(`/admin/book/unlock/${isbn}`, {
+        method: 'POST'
+    });
+    document.getElementById('editModal').classList.add('hidden');
 }
 
 function clearAddForm() {
