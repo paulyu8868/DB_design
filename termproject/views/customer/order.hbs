@@ -1,0 +1,456 @@
+{{!-- views/customer/order.hbs --}}
+<div class="min-h-screen bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- 도서 검색 섹션 -->
+        <h2 class="text-2xl font-bold mb-4">도서 검색</h2>
+        <div class="bg-white rounded-lg shadow mb-8 p-6">
+            <div class="flex gap-4 mb-4">
+                <select id="searchType" class="p-2 border rounded">
+                    <option value="title">도서명으로 검색</option>
+                    <option value="author">작가명으로 검색</option>
+                    <option value="award">수상명으로 검색</option>
+                </select>
+                <input type="text" id="searchKeyword" placeholder="검색어 입력" class="flex-1 p-2 border rounded">
+                <button onclick="searchBooks()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    검색
+                </button>
+            </div>
+        </div>
+
+        <!-- 도서 검색 결과 섹션 -->
+        <h2 class="text-2xl font-bold mb-4">검색 결과</h2>
+        <div class="bg-white rounded-lg shadow mb-8">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">도서명</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">작가</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">가격</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">재고</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">관리</th>
+                    </tr>
+                </thead>
+                <tbody id="searchResults">
+                    <!-- 검색 결과가 여기에 동적으로 추가됩니다 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 임시 장바구니 섹션 -->
+        <h2 class="text-2xl font-bold mb-4">장바구니</h2>
+        <div class="bg-white rounded-lg shadow mb-8">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">도서명</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">수량</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">가격</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">합계</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">관리</th>
+                    </tr>
+                </thead>
+                <tbody id="cartItems">
+                    <!-- 장바구니 아이템이 여기에 동적으로 추가됩니다 -->
+                </tbody>
+                <tfoot class="bg-gray-50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right font-semibold">총 결제 금액:</td>
+                        <td class="px-6 py-4 font-semibold" id="totalAmount">0원</td>
+                        <td class="px-6 py-4">
+                            <button onclick="placeOrder()" 
+                                    class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                                주문하기
+                            </button>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- 주문 내역 섹션 -->
+        <h2 class="text-2xl font-bold mb-4">주문 내역</h2>
+        <div class="bg-white rounded-lg shadow">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">주문번호</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">주문일자</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">도서명</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">수량</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">총 금액</th>
+                    </tr>
+                </thead>
+                <tbody id="orderHistory">
+                    <!-- 주문 내역이 여기에 동적으로 추가됩니다 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 수량 입력 모달 -->
+<div id="quantityModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">수량 입력</h2>
+        <input type="hidden" id="bookISBN">
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">수량</label>
+            <input type="number" id="quantity" min="1" class="w-full p-2 border rounded">
+        </div>
+        <div class="flex justify-end gap-4">
+            <button onclick="closeQuantityModal()" 
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                취소
+            </button>
+            <button onclick="addToCart()" 
+                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                담기
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 임시 장바구니 저장소
+let tempCart = new Map();
+
+// 검색어 입력 필드에서 엔터키 처리
+document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchBooks();
+    }
+});
+
+// 도서 검색
+async function searchBooks() {
+    const searchType = document.getElementById('searchType').value;
+    const keyword = document.getElementById('searchKeyword').value;
+
+    // 검색어 유효성 검사
+    if (!keyword || keyword.trim().length === 0) {
+        alert('검색어를 입력해주세요.');
+        return;
+    }
+
+    if (keyword.length > 100) {
+        alert('검색어는 100자를 초과할 수 없습니다.');
+        return;
+    }
+
+    try {
+        // 로딩 상태 표시
+        document.getElementById('searchResults').innerHTML = 
+            '<tr><td colspan="5" class="text-center py-4">검색 중...</td></tr>';
+
+        const response = await fetch(`/customer/order/search?type=${searchType}&keyword=${encodeURIComponent(keyword)}`);
+        if (!response.ok) {
+            throw new Error(`검색 요청 실패: ${response.status}`);
+        }
+        const data = await response.json();
+        displaySearchResults(data.books);
+    } catch (err) {
+        console.error('Search error:', err);
+        document.getElementById('searchResults').innerHTML = 
+            '<tr><td colspan="5" class="text-center text-red-500">검색 중 오류가 발생했습니다. 다시 시도해주세요.</td></tr>';
+    }
+}
+
+// 검색 결과 표시
+function displaySearchResults(books) {
+    const tbody = document.getElementById('searchResults');
+    if (!books || books.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">검색 결과가 없습니다.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = books.map(book => `
+        <tr class="border-t">
+            <td class="px-6 py-4">${book.title}</td>
+            <td class="px-6 py-4">${book.author_name || '-'}</td>
+            <td class="px-6 py-4">${book.price.toLocaleString()}원</td>
+            <td class="px-6 py-4">${book.total_stock}</td>
+            <td class="px-6 py-4">
+                ${book.total_stock > 0 
+                    ? `<button 
+                        data-book='${JSON.stringify(book)}'
+                        class="add-to-cart-btn text-blue-500 hover:text-blue-700">
+                        장바구니 담기
+                       </button>`
+                    : '<span class="text-red-500">재고 없음</span>'
+                }
+            </td>
+        </tr>
+    `).join('');
+
+    // 장바구니 담기 버튼에 이벤트 리스너 추가
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const bookData = JSON.parse(this.dataset.book);
+            openQuantityModal(bookData);
+        });
+    });
+}
+
+// 수량 입력
+function openQuantityModal(book) {
+    try {
+        const modal = document.getElementById('quantityModal');
+        const quantityInput = document.getElementById('quantity');
+        const bookISBNInput = document.getElementById('bookISBN');
+
+        if (!modal || !quantityInput || !bookISBNInput) {
+            throw new Error('필요한 DOM 요소를 찾을 수 없습니다.');
+        }
+
+        bookISBNInput.value = book.ISBN;
+        quantityInput.max = book.total_stock;
+        quantityInput.value = 1;
+        quantityInput.dataset.bookInfo = JSON.stringify(book);
+        
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('모달 열기 오류:', error);
+        alert('장바구니 담기 중 오류가 발생했습니다.');
+    }
+}
+
+function closeQuantityModal() {
+    document.getElementById('quantityModal').classList.add('hidden');
+}
+
+// 장바구니에 추가
+function addToCart() {
+    try {
+        const quantityInput = document.getElementById('quantity');
+        const bookData = JSON.parse(quantityInput.dataset.bookInfo);
+        const quantity = parseInt(quantityInput.value);
+
+        if (!bookData || !quantity) {
+            throw new Error('필요한 데이터가 없습니다.');
+        }
+
+        if (quantity < 1 || quantity > bookData.total_stock) {
+            alert('올바른 수량을 입력해주세요.');
+            return;
+        }
+
+        const item = {
+            ISBN: bookData.ISBN,
+            title: bookData.title,
+            price: bookData.price,
+            quantity: quantity,
+            maxStock: bookData.total_stock
+        };
+
+        // 기존 아이템 체크
+        if (tempCart.has(bookData.ISBN)) {
+            const existingItem = tempCart.get(bookData.ISBN);
+            const newQuantity = existingItem.quantity + quantity;
+            
+            if (newQuantity > bookData.total_stock) {
+                alert('재고 수량을 초과할 수 없습니다.');
+                return;
+            }
+            item.quantity = newQuantity;
+        }
+
+        tempCart.set(bookData.ISBN, item);
+        displayCart();
+        closeQuantityModal();
+        
+    } catch (error) {
+        console.error('장바구니 추가 오류:', error);
+        alert('장바구니에 추가하는 중 오류가 발생했습니다.');
+    }
+}
+
+// 장바구니 표시
+function displayCart() {
+    const tbody = document.getElementById('cartItems');
+    let totalAmount = 0;
+
+    if (tempCart.size === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">장바구니가 비어있습니다.</td></tr>';
+        document.getElementById('totalAmount').textContent = '0원';
+        return;
+    }
+
+    tbody.innerHTML = Array.from(tempCart.values()).map(item => {
+        const itemTotal = item.price * item.quantity;
+        totalAmount += itemTotal;
+
+        return `
+            <tr class="border-t">
+                <td class="px-6 py-4">${item.title}</td>
+                <td class="px-6 py-4">
+                    <input type="number" 
+                           value="${item.quantity}" 
+                           min="1" 
+                           max="${item.maxStock}"
+                           onchange="updateCartQuantity('${item.ISBN}', this.value)"
+                           class="w-20 p-1 border rounded">
+                </td>
+                <td class="px-6 py-4">${item.price.toLocaleString()}원</td>
+                <td class="px-6 py-4">${itemTotal.toLocaleString()}원</td>
+                <td class="px-6 py-4">
+                    <button onclick="removeFromCart('${item.ISBN}')" 
+                            class="text-red-500 hover:text-red-700">삭제</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    document.getElementById('totalAmount').textContent = `${totalAmount.toLocaleString()}원`;
+}
+
+// 장바구니 수량 업데이트
+function updateCartQuantity(isbn, newQuantity) {
+    try {
+        newQuantity = parseInt(newQuantity);
+        const item = tempCart.get(isbn);
+        
+        if (!item) {
+            throw new Error('상품을 찾을 수 없습니다.');
+        }
+
+        if (newQuantity < 1 || newQuantity > item.maxStock) {
+            alert('올바른 수량을 입력해주세요.');
+            displayCart(); // 원래 수량으로 복구
+            return;
+        }
+
+        item.quantity = newQuantity;
+        tempCart.set(isbn, item);
+        displayCart();
+    } catch (error) {
+        console.error('수량 업데이트 오류:', error);
+        alert('수량 변경 중 오류가 발생했습니다.');
+        displayCart();
+    }
+}
+
+// 장바구니에서 제거
+function removeFromCart(isbn) {
+    tempCart.delete(isbn);
+    displayCart();
+}
+
+// 주문하기
+async function placeOrder() {
+    if (tempCart.size === 0) {
+        alert('장바구니가 비어있습니다.');
+        return;
+    }
+
+    try {
+        const items = Array.from(tempCart.values()).map(item => ({
+            ISBN: item.ISBN,
+            quantity: item.quantity,
+            title: item.title
+        }));
+
+        const response = await fetch('/customer/order/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            alert(result.error);
+            return;
+        }
+
+        if (result.success) {
+            alert('주문이 완료되었습니다.');
+            tempCart.clear();
+            displayCart();
+            loadOrderHistory(); // 주문 내역 새로고침
+        }
+    } catch (error) {
+        console.error('Order error:', error);
+        alert('주문 처리 중 오류가 발생했습니다.');
+    }
+}
+
+async function loadOrderHistory() {
+    try {
+        const response = await fetch('/customer/order/history');
+        if (response.status === 401) {
+            alert('로그인이 필요합니다.');
+            // 로그인 페이지로 리다이렉트 등의 처리
+            return;
+        }
+        if (!response.ok) {
+            throw new Error('주문 내역 조회 실패');
+        }
+        
+        const data = await response.json();
+        displayOrderHistory(data.orders);
+    } catch (error) {
+        console.error('History load error:', error);
+        document.getElementById('orderHistory').innerHTML = 
+            '<tr><td colspan="4" class="text-center text-red-500 py-4">주문 내역을 불러오는 중 오류가 발생했습니다.</td></tr>';
+    }
+}
+
+function displayOrderHistory(orders) {
+    const tbody = document.getElementById('orderHistory');
+    
+    if (!orders || orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">주문 내역이 없습니다.</td></tr>';
+        return;
+    }
+
+    // basket_id로 주문을 그룹화
+    const groupedOrders = orders.reduce((acc, order) => {
+        if (!acc[order.basket_id]) {
+            acc[order.basket_id] = {
+                basket_id: order.basket_id,
+                order_date: order.order_date,
+                items: []
+            };
+        }
+        acc[order.basket_id].items.push({
+            title: order.title,
+            quantity: order.quantity,
+            price: order.price,
+            item_total: order.item_total
+        });
+        return acc;
+    }, {});
+
+    // 그룹화된 주문을 HTML로 변환
+    tbody.innerHTML = Object.values(groupedOrders).map(order => {
+        const itemRows = order.items.map(item => `
+            <div class="py-1">
+                <span>${item.title}</span>
+                <span class="ml-2 text-gray-600"></span>
+            </div>
+        `).join('');
+
+        const quantityRows = order.items.map(item => `
+            <div class="py-1 text-center">${item.quantity}</div>
+        `).join('');
+
+        const totalAmount = order.items.reduce((sum, item) => sum + item.item_total, 0);
+
+        return `
+            <tr class="border-t">
+                <td class="px-6 py-4">${order.basket_id}</td>
+                <td class="px-6 py-4">${new Date(order.order_date).toLocaleDateString()}</td>
+                <td class="px-6 py-4">${itemRows}</td>
+                <td class="px-6 py-4">${quantityRows}</td>
+                <td class="px-6 py-4">${totalAmount.toLocaleString()}원</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// 페이지 로드 시 주문 내역 로드
+document.addEventListener('DOMContentLoaded', loadOrderHistory);
+
+</script>

@@ -14,12 +14,11 @@ router.post('/', async (req, res) => {
     const users = await selectSql.getUser(); // 사용자 정보 가져오기
 
     // 로그인 인증
-    users.map((user) => { // user는 select 한 user 정보 
-        //console.log('ID :', user.id);   
+    users.map((user) => { // user는 select 한 user 정보  
         if (vars.id === user.id && vars.password === user.password) {
             console.log('login success!');
             console.log(`${user.id} ${user.role}님 로그인`);
-            req.session.user = { id: user.id, role: user.role, checkLogin: true };
+            req.session.user = {cid:user.cid, id: user.id, role: user.role, checkLogin: true };
         }
     });
 
@@ -34,7 +33,7 @@ router.post('/', async (req, res) => {
         res.redirect('/admin'); // redirect
     } else if (req.session.user.checkLogin && req.session.user.role === '고객') { // 학생일때
         console.log('고객 로그인');
-        res.redirect('/'); // 페이지 redirect
+        res.redirect('/customer'); // 페이지 redirect
     }
 
 });

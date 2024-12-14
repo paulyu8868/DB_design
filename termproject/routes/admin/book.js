@@ -44,7 +44,7 @@ router.delete('/:isbn', async (req, res) => {
     }
 });
 
-// book.js 라우터
+// LOCK 요청
 router.post('/lock/:isbn', async (req, res) => {
     try {
         const result = await lockSql.lockBook(req.params.isbn);
@@ -64,7 +64,7 @@ router.post('/lock/:isbn', async (req, res) => {
     }
 });
 
-// book.js 라우터
+// UNLOCK 요청
 router.post('/unlock/:isbn', async (req, res) => {
     await lockSql.unlockBook(req.params.isbn);  // isbn 전달
     res.json({ success: true });

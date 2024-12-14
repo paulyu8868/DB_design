@@ -13,15 +13,19 @@ const pool = mysql.createPool({
 const promisePool = pool.promise();
 
 export const selectSql = {
+
     // 유저 정보 가져오기
     getUser: async () => {
         const sql = `
-        SELECT email as id, phonenumber as password, admin as role 
+        SELECT customer_id as cid, email as id, phonenumber as password, admin as role 
         FROM customer`;
         const [result] = await promisePool.query(sql);
         return result;
     },
 
+    /*
+    관리자 페이지
+    */
     // 도서 정보 검색
     searchBooks: async (searchTerm) => {
         const sql = `
@@ -91,20 +95,142 @@ export const selectSql = {
         }
         return rows;
      },
-     
+     /*
+     고객 페이지
+     */
      // 주문(contains) 정보 검색
-     searchOrders: async (basketId) => {
+
+    // 도서명으로 검색
+    searchBooksByTitle: async (title) => {
         const sql = `
-            SELECT * 
-            FROM book_shoppingbasket 
-            WHERE Shopping_basket_basket_id = ?
+            SELECT b.*,
+                GROUP_CONCAT(a.name) as author_name,
+                (
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_warehouse 
+                    WHERE Book_ISBN = b.ISBN) - 
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_shoppingbasket 
+                    WHERE Book_ISBN = b.ISBN)
+                ) as total_stock
+            FROM book b
+            LEFT JOIN author_book ab ON b.ISBN = ab.Book_ISBN
+            LEFT JOIN author a ON ab.Author_name = a.name
+            WHERE b.title = ?
+            GROUP BY b.ISBN;
         `;
-        const [rows] = await promisePool.query(sql, [basketId]);
-        if (rows.length === 0) {
-            throw new Error();
-        }
+        const [rows] = await promisePool.query(sql, [title]);
         return rows;
-     },
+    },
+
+     // 작가명으로 검색
+    searchBooksByAuthor: async (authorName) => {
+        const sql = `
+            SELECT b.*,
+                GROUP_CONCAT(a.name) as author_name,
+                (
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_warehouse 
+                    WHERE Book_ISBN = b.ISBN) - 
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_shoppingbasket 
+                    WHERE Book_ISBN = b.ISBN)
+                ) as total_stock
+            FROM book b
+            LEFT JOIN author_book ab ON b.ISBN = ab.Book_ISBN
+            LEFT JOIN author a ON ab.Author_name = a.name
+            WHERE a.name = ?
+            GROUP BY b.ISBN;
+        `;
+        const [rows] = await promisePool.query(sql, [authorName]);
+        return rows;
+    },
+    
+    // 수상명으로 검색
+    searchBooksByAward: async (awardName) => {
+        const sql = `
+            SELECT b.*,
+                GROUP_CONCAT(a.name) as author_name,
+                (
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_warehouse 
+                    WHERE Book_ISBN = b.ISBN) - 
+                    (SELECT COALESCE(SUM(quantity), 0) 
+                    FROM book_shoppingbasket 
+                    WHERE Book_ISBN = b.ISBN)
+                ) as total_stock
+            FROM book b
+            LEFT JOIN author_book ab ON b.ISBN = ab.Book_ISBN
+            LEFT JOIN author a ON ab.Author_name = a.name
+            JOIN award_book awb ON b.ISBN = awb.Book_ISBN
+            JOIN award aw ON awb.Award_Award_id = aw.Award_id
+            WHERE aw.name = ?
+            GROUP BY b.ISBN;
+        `;
+        const [rows] = await promisePool.query(sql, [awardName]);
+        return rows;
+    },
+
+        // 예약 중복 체크 (10분 이내)
+    checkReservationOverlap: async (pickupTime) => {
+        const sql = `
+            SELECT COUNT(*) as count 
+            FROM reservation
+            WHERE ABS(TIMESTAMPDIFF(MINUTE, pickup_time, ?)) < 10
+        `;
+        const [[{count}]] = await promisePool.query(sql, [pickupTime]);
+        return count > 0;
+    },
+
+    // 내 예약 목록 조회
+    getMyReservations: async (customerId) => {
+        const sql = `
+            SELECT r.*, b.title
+            FROM reservation r
+            JOIN book b ON r.Book_ISBN = b.ISBN
+            WHERE r.Customer_Customer_id = ?
+            ORDER BY r.pickup_time
+        `;
+        const [rows] = await promisePool.query(sql, [customerId]);
+        return rows;
+    },
+
+     // 도서 재고 확인
+     checkBookStock: async (isbn) => {
+        const sql = `
+            SELECT 
+                COALESCE(SUM(bw.quantity), 0) - COALESCE(
+                    (SELECT SUM(bs.quantity) 
+                    FROM book_shoppingbasket bs 
+                    WHERE bs.Book_ISBN = ?), 0
+                ) as total_stock
+            FROM book_warehouse bw
+            WHERE bw.Book_ISBN = ?
+        `;
+        const [[result]] = await promisePool.query(sql, [isbn, isbn]);
+        return result.total_stock;
+    },
+
+    // 주문내역 조회
+    getOrderHistory: async (customerId) => {
+        const sql = `
+            SELECT 
+                sb.basket_id,
+                sb.order_date,
+                b.title,
+                bs.quantity,
+                b.price,
+                (b.price * bs.quantity) as item_total
+            FROM shoppingbasket sb
+            JOIN book_shoppingbasket bs ON sb.basket_id = bs.Shopping_basket_basket_id
+            JOIN book b ON bs.Book_ISBN = b.ISBN
+            WHERE sb.Customer_customer_id = ?
+            ORDER BY sb.order_date DESC, sb.basket_id
+        `;
+        const [rows] = await promisePool.query(sql, [customerId]);
+        return rows;
+    }
+
 }
 
 export const insertSql = {
@@ -165,6 +291,49 @@ export const insertSql = {
         const values = [order.Book_ISBN, order.Shopping_basket_basket_id, order.quantity];
         await promisePool.query(sql, values);
      },
+
+     /*
+     고객 페이지
+     */
+
+        // 예약 추가
+    addReservation: async (reservation) => {
+        const sql = `
+            INSERT INTO reservation 
+            (Customer_Customer_id, Book_ISBN, reservation_date, pickup_time) 
+            VALUES (?, ?, ?, ?)
+        `;
+        const values = [
+            reservation.customer_id,
+            reservation.book_isbn,
+            reservation.pickup_time,
+            reservation.pickup_time
+        ];
+        await promisePool.query(sql, values);
+    },
+
+        // 장바구니 생성
+    createShoppingBasket: async (basketData) => {
+        const sql = `
+            INSERT INTO shoppingbasket 
+            (Customer_customer_id, order_date) 
+            VALUES (?, ?)
+        `;
+        const values = [basketData.customer_id, basketData.order_date];
+        const [result] = await promisePool.query(sql, values);
+        return result.insertId;  // 생성된 basket_id 반환
+    },
+
+    // 장바구니에 도서 추가
+    addBookToBasket: async (item) => {
+        const sql = `
+            INSERT INTO book_shoppingbasket 
+            (Shopping_basket_basket_id, Book_ISBN, quantity) 
+            VALUES (?, ?, ?)
+        `;
+        const values = [item.basket_id, item.book_isbn, item.quantity];
+        await promisePool.query(sql, values);
+    }
 };
 
 export const updateSql = {
@@ -233,6 +402,21 @@ export const updateSql = {
         const values = [inventory.quantity, inventory.Book_ISBN, inventory.Warehouse_code];
         await promisePool.query(sql, values);
      },
+
+     /*
+     고객 페이지
+     */
+
+    // 예약 수정
+    updateReservation: async (reservation) => { 
+        const sql = `
+            UPDATE reservation
+            SET pickup_time = ?
+            WHERE reservation_id = ?
+        `;
+        const values = [reservation.pickup_time, reservation.id];
+        await promisePool.query(sql, values);
+    }
 };
 
 export const deleteSql = {
@@ -268,7 +452,18 @@ export const deleteSql = {
      deleteOrder: async (isbn, basketId) => {
         const sql = `DELETE FROM book_shoppingbasket WHERE Book_ISBN = ? AND Shopping_basket_basket_id = ?`;
         await promisePool.query(sql, [isbn, basketId]);
-     }
+     },
+
+     /*
+     고객 페이지
+     */
+        // 예약 삭제
+    deleteReservation: async (id) => {
+        const sql = `DELETE FROM reservation WHERE reservation_id = ?`;
+        await promisePool.query(sql, [id]);
+    }
+
+     
 };
 
 
