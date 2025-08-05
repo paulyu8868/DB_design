@@ -56,8 +56,6 @@ BookStore는 도서 예약 및 구매 기능을 제공하는 웹 기반 서점 �
 - 창고: 10개
 - 고객: 10명 (관리자 2명, 일반 고객 8명)
 
-Python의 Faker 라이브러리를 활용한 더미 데이터 생성
-
 ## 성능 최적화
 
 ### 인덱스 적용
@@ -71,3 +69,18 @@ Python의 Faker 라이브러리를 활용한 더미 데이터 생성
 
 exact match 검색에 최적화된 HASH 인덱스 사용
 => 다만 좀 더 명확한 성능개선을 체험하려면 더 많은 더미데이터로 실험하길 권장
+
+### 기술 스택
+
+### Backend
+
+- Node.js
+- Express.js
+- MySQL
+- Python (더미 데이터 생성)
+
+### Frontend
+
+- HTML/CSS/JavaScript
+- Handlebars (템플릿 엔진)
+- Tailwind CSS
